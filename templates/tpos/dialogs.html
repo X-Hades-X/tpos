@@ -220,6 +220,12 @@
     </q-card>
   </q-dialog>
 
+{#
+  The password manager annoyed me; always asking if I want to override my LNBits password
+  I also didn't like the mobile keyboard appearing when clicking into an input
+
+  Wanted to use keypad but couldn't make it work; so I rebuilt it with some basic buttons
+#}
   <q-dialog v-model="pinBox" @hide="pinDialogClose">
     <q-card>
       <q-card-section class="text-h6 pin-pad-title">
@@ -262,6 +268,7 @@
     </q-card>
   </q-dialog>
 
+{#  TODO I noticed that this is dead code; should we remove it? #}
   <q-dialog v-model="atmBox" @hide="atmPin = null">
     <q-card>
       <q-card-section class="row items-center q-pb-none">

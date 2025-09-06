@@ -424,6 +424,8 @@ window.app = Vue.createApp({
         .catch(LNbits.utils.notifyApiError)
     },
     pinDialogClose() {
+      // when the pin wasn't submitted the dialog was closed by other means
+      // restart NFC so it can be tried again
       if(!this.lnPinSubmitted) {
         this.readNfcTag()
       }
@@ -459,6 +461,8 @@ window.app = Vue.createApp({
               type: 'negative',
               message: response.data.detail
             })
+            // the LNURLw is invalidated after sending the wrong pin
+            // restart NFC to try payment again
             this.readNfcTag()
           }
         })
@@ -864,6 +868,7 @@ window.app = Vue.createApp({
         )
         .then(response => {
           if (!response.data.success) {
+            // if pin is required we need to store callback and k1 for after the user entered the pin
             if(response.data.detail === 'Pin required') {
               this.withdrawData = {
                 callback: response.data.callback,
@@ -1004,6 +1009,7 @@ window.app = Vue.createApp({
         this.lnPin = ''
       }
 
+      // Pin max length 4; if this changes style needs to be changed too for space reasons
       if (this.lnPin.length < 4) {
         this.lnPin += n
       }

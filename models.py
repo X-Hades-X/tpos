@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, validator
 
 class PayLnurlWData(BaseModel):
     lnurl: str
-    sat: int
+    sat: int # TODO need the sat amount to check if pin is needed; how does decoding work?
 
 
 class WithdrawLnurlWData(BaseModel):

@@ -189,6 +189,8 @@ async def api_tpos_pay_invoice(
             status_code=HTTPStatus.NOT_FOUND, detail="TPoS does not exist."
         )
 
+    # TODO should be possible to get sat value it from decoded lnurl but how?
+    # decode_lnurl only returns the url but no other information
     sat = lnurl_data.sat
     lnurl = (
         lnurl_data.lnurl.replace("lnurlw://", "")
@@ -221,9 +223,11 @@ async def api_tpos_pay_invoice(
                 if resp.get("tag") != "withdrawRequest":
                     lnurl_response = {"success": False, "detail": "Wrong tag type"}
                 else:
-                    pin_limit = resp["pinLimit"]
+                    pin_limit = resp.get("pinLimit", None)
                     callback = resp.get("callback", "")
                     k1 = resp.get("k1", "")
+                    # if a pin is required we can't do both steps in one go
+                    # and need user interaction in between
                     if sat and pin_limit and int(pin_limit) / 1000 < sat:
                         lnurl_response = {
                             "success": False,
@@ -232,6 +236,7 @@ async def api_tpos_pay_invoice(
                             "k1": k1
                         }
                     else:
+                        # No pin needed, go right to second step
                         lnurl_response = await api_tpos_widthdraw_invoice(
                             WithdrawLnurlWData(
                                 callback=callback,
