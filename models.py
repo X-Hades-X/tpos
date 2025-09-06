@@ -98,6 +98,13 @@ class HashCheck(BaseModel):
 
 class PayLnurlWData(BaseModel):
     lnurl: str
+    sat: int
+
+
+class WithdrawLnurlWData(BaseModel):
+    callback: str
+    k1: str
+    pin: str
 
 
 class LNaddress(BaseModel):
