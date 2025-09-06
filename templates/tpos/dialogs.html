@@ -220,6 +220,48 @@
     </q-card>
   </q-dialog>
 
+  <q-dialog v-model="pinBox" @hide="pinDialogClose">
+    <q-card>
+      <q-card-section class="text-h6 pin-pad-title">
+        <div>Enter PIN</div>
+        <!-- Toggle button -->
+        <q-icon
+          :name="hidePin ? 'visibility_off' : 'visibility'"
+          class="cursor-pointer"
+          @click="hidePin = !hidePin"
+        ></q-icon>
+      </q-card-section>
+
+      <q-card-section>
+        <div class="pin-pad-block">
+          <!-- Display entered PIN -->
+          <div class="pin-display">
+            <template v-for="digit in lnPin">
+              <span v-if="hidePin"> • </span>
+              <span v-else>${digit}</span>
+            </template>
+          </div>
+
+          <!-- PIN pad -->
+          <div class="pin-pad row q-gutter-sm">
+            <q-btn v-for="n in 3" :key="n" :label="n" color="primary" @click="appendPinDigit(n)"></q-btn>
+          </div>
+          <div class="pin-pad row q-gutter-sm">
+            <q-btn v-for="n in 3" :key="n + 3" :label="n + 3" color="primary" @click="appendPinDigit(n + 3)"></q-btn>
+          </div>
+          <div class="pin-pad row q-gutter-sm">
+            <q-btn v-for="n in 3" :key="n + 6" :label="n + 6" color="primary" @click="appendPinDigit(n + 6)"></q-btn>
+          </div>
+          <div class="pin-pad row q-gutter-sm">
+            <q-btn label="⬅" :color="monochrome ? 'secondary' : 'warning'" @click="removePinDigit"></q-btn>
+            <q-btn label="0" color="primary" @click="appendPinDigit(0)"></q-btn>
+            <q-btn label="OK" :color="monochrome ? 'secondary' : 'positive'" @click="pinDialogSubmit"></q-btn>
+          </div>
+        </div>
+      </q-card-section>
+    </q-card>
+  </q-dialog>
+
   <q-dialog v-model="atmBox" @hide="atmPin = null">
     <q-card>
       <q-card-section class="row items-center q-pb-none">

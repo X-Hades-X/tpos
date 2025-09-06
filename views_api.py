@@ -31,6 +31,7 @@ from .models import (
     CreateUpdateItemData,
     PayLnurlWData,
     Tpos,
+    WithdrawLnurlWData,
 )
 
 tpos_api_router = APIRouter()
@@ -188,6 +189,7 @@ async def api_tpos_pay_invoice(
             status_code=HTTPStatus.NOT_FOUND, detail="TPoS does not exist."
         )
 
+    sat = lnurl_data.sat
     lnurl = (
         lnurl_data.lnurl.replace("lnurlw://", "")
         .replace("lightning://", "")
@@ -219,25 +221,68 @@ async def api_tpos_pay_invoice(
                 if resp.get("tag") != "withdrawRequest":
                     lnurl_response = {"success": False, "detail": "Wrong tag type"}
                 else:
-                    r2 = await client.get(
-                        resp.get("callback", ""),
-                        follow_redirects=True,
-                        headers=headers,
-                        params={
-                            "k1": resp.get("k1", ""),
-                            "pr": payment_request,
-                        },
-                    )
-                    resp2 = r2.json()
-                    if r2.is_error:
+                    pin_limit = resp["pinLimit"]
+                    callback = resp.get("callback", "")
+                    k1 = resp.get("k1", "")
+                    if sat and pin_limit and int(pin_limit) / 1000 < sat:
                         lnurl_response = {
                             "success": False,
-                            "detail": "Error loading callback",
+                            "detail": "Pin required",
+                            "callback": callback,
+                            "k1": k1
                         }
-                    elif resp2.get("status") == "ERROR":
-                        lnurl_response = {"success": False, "detail": resp2["reason"]}
                     else:
-                        lnurl_response = {"success": True, "detail": resp2}
+                        lnurl_response = await api_tpos_widthdraw_invoice(
+                            WithdrawLnurlWData(
+                                callback=callback,
+                                k1=k1,
+                                pin=""
+                            ),
+                            payment_request,
+                            tpos_id
+                        )
+        except (httpx.ConnectError, httpx.RequestError):
+            lnurl_response = {"success": False, "detail": "Unexpected error occurred"}
+
+    return lnurl_response
+
+
+@tpos_api_router.post(
+    "/api/v1/tposs/{tpos_id}/invoices/{payment_request}/withdraw", status_code=HTTPStatus.OK
+)
+async def api_tpos_widthdraw_invoice(
+        withdraw_data: WithdrawLnurlWData, payment_request: str, tpos_id: str
+):
+    tpos = await get_tpos(tpos_id)
+
+    if not tpos:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="TPoS does not exist."
+        )
+
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {"user-agent": "lnbits/tpos"}
+            r = await client.get(
+                withdraw_data.callback,
+                follow_redirects=True,
+                headers=headers,
+                params={
+                    "k1": withdraw_data.k1,
+                    "pr": payment_request,
+                    "pin": withdraw_data.pin
+                },
+            )
+            resp = r.json()
+            if r.is_error:
+                lnurl_response = {
+                    "success": False,
+                    "detail": "Error loading callback",
+                }
+            elif resp.get("status") == "ERROR":
+                lnurl_response = {"success": False, "detail": resp["reason"]}
+            else:
+                lnurl_response = {"success": True, "detail": resp}
         except (httpx.ConnectError, httpx.RequestError):
             lnurl_response = {"success": False, "detail": "Unexpected error occurred"}
 

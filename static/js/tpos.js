@@ -17,6 +17,13 @@ window.app = Vue.createApp({
       tipAmount: 0.0,
       tipRounding: null,
       hasNFC: false,
+      pinBox: false,
+      lnPin: null,
+      lnPinSubmitted: false,
+      withdrawData: {
+        k1: null,
+        callback: null
+      },
       atmBox: false,
       hidePin: true,
       atmMode: false,
@@ -416,6 +423,47 @@ window.app = Vue.createApp({
         })
         .catch(LNbits.utils.notifyApiError)
     },
+    pinDialogClose() {
+      if(!this.lnPinSubmitted) {
+        this.readNfcTag()
+      }
+
+      this.lnPinSubmitted = false
+      this.hidePin = true
+      this.lnPin = null
+    },
+    pinDialogSubmit() {
+      this.lnPinSubmitted = true
+      LNbits.api
+        .request('POST',
+          '/tpos/api/v1/tposs/' +
+          this.tposId +
+          '/invoices/' +
+          this.invoiceDialog.data.payment_request +
+          '/withdraw',
+          null,
+          {
+            callback: this.withdrawData.callback,
+            k1: this.withdrawData.k1,
+            pin: this.lnPin
+          })
+        .then(response => {
+          this.withdrawData = {
+            k1: null,
+            callback: null
+          }
+          this.pinBox = false
+
+          if(!response.data.success) {
+            Quasar.Notify.create({
+              type: 'negative',
+              message: response.data.detail
+            })
+            this.readNfcTag()
+          }
+        })
+        .catch(LNbits.utils.notifyApiError)
+    },
     lnaddressSubmit() {
       LNbits.api
         .request(
@@ -810,14 +858,22 @@ window.app = Vue.createApp({
         .post(
           `/tpos/api/v1/tposs/${this.tposId}/invoices/${payment_request}/pay`,
           {
-            lnurl: lnurl
+            lnurl: lnurl,
+            sat: this.sat
           }
         )
         .then(response => {
           if (!response.data.success) {
-            Quasar.Notify.create({
-              type: 'negative',
-              message: response.data.detail,
+            if(response.data.detail === 'Pin required') {
+              this.withdrawData = {
+                callback: response.data.callback,
+                k1: response.data.k1
+              }
+              this.pinBox = true
+            } else {
+              Quasar.Notify.create({
+                type: 'negative',
+                message: response.data.detail,
               timeout: 0,
               actions: [
                 {
@@ -829,7 +885,7 @@ window.app = Vue.createApp({
                   }
                 }
               ]
-            })
+            })}
           }
         })
         .catch(error => {
@@ -942,6 +998,18 @@ window.app = Vue.createApp({
       if (this.$q.screen.lt.lg && this.cartDrawer) {
         this.cartDrawer = false
       }
+    },
+    appendPinDigit(n) {
+      if (!this.lnPin) {
+        this.lnPin = ''
+      }
+
+      if (this.lnPin.length < 4) {
+        this.lnPin += n
+      }
+    },
+    removePinDigit() {
+      this.lnPin = this.lnPin.slice(0, -1)
     },
     async printReceipt(paymentHash) {
       this.receiptData = null
