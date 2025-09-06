@@ -17,7 +17,8 @@ window.app = Vue.createApp({
       tipRounding: null,
       hasNFC: false,
       pinBox: false,
-      lnPin: false,
+      lnPin: null,
+      lnPinSubmitted: false,
       withdrawData: {
         k1: null,
         callback: null
@@ -318,7 +319,17 @@ window.app = Vue.createApp({
         })
         .catch(LNbits.utils.notifyApiError)
     },
-    pinSubmit() {
+    pinDialogClose() {
+      if(!this.lnPinSubmitted) {
+        this.readNfcTag()
+      }
+
+      this.lnPinSubmitted = false
+      this.hidePin = true
+      this.lnPin = null
+    },
+    pinDialogSubmit() {
+      this.lnPinSubmitted = true
       LNbits.api
         .request('POST',
           '/tpos/api/v1/tposs/' +
@@ -837,7 +848,19 @@ window.app = Vue.createApp({
       if (this.$q.screen.lt.lg && this.cartDrawer) {
         this.cartDrawer = false
       }
-    }
+    },
+    appendPinDigit(n) {
+      if (!this.lnPin) {
+        this.lnPin = ''
+      }
+
+      if (this.lnPin.length < 4) {
+        this.lnPin += n
+      }
+    },
+    removePinDigit() {
+      this.lnPin = this.lnPin.slice(0, -1)
+    },
   },
   async created() {
     Quasar.Loading.show()
